@@ -38,15 +38,21 @@ export class AuthService {
       throw new AppError("Your account is currently inactive or suspended", 403, "ACCOUNT_INACTIVE");
     }
 
-    // Generate token
+    // Generate hardened token
     const token = jwt.sign(
       {
         userId: user.id,
         role: user.role,
         email: user.email,
+        tokenVersion: user.tokenVersion,
       },
       env.JWT_SECRET,
-      { expiresIn: "7d" }
+      {
+        algorithm: "HS256",
+        expiresIn: "7d",
+        issuer: env.JWT_ISSUER,
+        audience: env.JWT_AUDIENCE,
+      }
     );
 
     return {
@@ -61,6 +67,15 @@ export class AuthService {
         classId: user.studentProfile?.classId,
       },
     };
+  }
+
+  async logout(userId?: string) {
+    if (userId) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { tokenVersion: { increment: 1 } },
+      });
+    }
   }
 
   async registerStudent(input: StudentRegisterInput) {

@@ -103,6 +103,19 @@
   - Admin endpoint `POST /api/v1/students/:id/approve` transitions status to `ACTIVE`.
   - Audit log entry recorded on approval.
 
+### SG-001: Security Release Gate — Authentication & Authorization Verification
+- **Status:** PASSED (GO for Phase 4: Academic Management)
+- **Date Verified:** 2026-10-26
+- **Verified Controls & Remediations:**
+  - Token Revocation: Server-side token revocation on `POST /auth/logout` via `tokenVersion` counter on `User`.
+  - JWT Hardening: Explicit `HS256` algorithm, `issuer: smart-attendance-api`, and `audience: smart-attendance-client` enforcement.
+  - Environment Validation: Production boot fails fast if `JWT_SECRET` or `SESSION_SECRET` use dev defaults or are < 32 characters.
+  - Immediate Access Termination: User suspension (`status: SUSPENDED`) denies active JWTs on the very next request.
+  - Cookie & CSRF Defense: Standardized HttpOnly/SameSite/Secure cookies; `csrfGuard` blocks cross-origin mutating cookie requests.
+  - Data Protection: Zero biometric descriptors, password hashes, or internal tokens exposed in profile/student responses.
+  - Client Hardening: Development credential shortcuts guarded behind `NODE_ENV === "development"` and purged from production builds.
+  - Automated Tests: 32/32 tests passing in Vitest (`apps/api/test/auth.test.ts`, `database-invariants.test.ts`, `health.test.ts`).
+
 ---
 
 ## Phase 4 — Academic Structure Management

@@ -4,6 +4,7 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import { env } from "./config/env.js";
+import { csrfGuard } from "./middleware/csrf.js";
 import { errorHandler, AppError } from "./middleware/errorHandler.js";
 import { healthRouter } from "./routes/health.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
@@ -12,17 +13,23 @@ import { studentsRouter } from "./modules/students/students.routes.js";
 export function createApp(): Express {
   const app = express();
 
+  const allowedOrigins =
+    env.NODE_ENV === "production"
+      ? [env.APP_ORIGIN]
+      : [env.APP_ORIGIN, "http://localhost:3000", "http://127.0.0.1:3000"];
+
   // Basic security and request parsing
   app.use(helmet());
   app.use(
     cors({
-      origin: [env.APP_ORIGIN, "http://localhost:3000"],
+      origin: allowedOrigins,
       credentials: true,
     })
   );
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ extended: true, limit: "2mb" }));
   app.use(cookieParser());
+  app.use(csrfGuard);
 
   // Global rate limiter (100 requests per 15 minutes per IP)
   const limiter = rateLimit({

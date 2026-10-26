@@ -31,8 +31,12 @@ export class AuthController {
     }
   }
 
-  async logout(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      if (req.user?.id) {
+        await authService.logout(req.user.id);
+      }
+
       res.clearCookie(COOKIE_NAME, {
         httpOnly: true,
         secure: env.NODE_ENV === "production",

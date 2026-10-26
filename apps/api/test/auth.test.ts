@@ -199,6 +199,18 @@ describe("T-010: Authentication and Authorization Module", () => {
       const setCookie = res.headers.get("set-cookie") || "";
       expect(setCookie).toContain("session_token=;");
     });
+
+    it("should invalidate copied/stolen token after logout via server-side tokenVersion revocation", async () => {
+      // Attempt to access /auth/me with the previous adminCookie that was active before logout
+      const res = await fetch(`${baseUrl}/auth/me`, {
+        headers: { Cookie: adminCookie },
+      });
+
+      expect(res.status).toBe(401);
+      const body = await res.json();
+      expect(body.error.code).toBe("UNAUTHORIZED");
+      expect(body.error.message).toContain("Session has been terminated or logged out");
+    });
   });
 
   describe("3. Student Self-Registration Workflow (POST /auth/register)", () => {
@@ -431,6 +443,151 @@ describe("T-010: Authentication and Authorization Module", () => {
       expect(body.success).toBe(true);
       expect(body.data.name).toBe("Rohan Varma");
       expect(body.data.rollNumber).toBe("CS099");
+    });
+  });
+
+  describe("6. Advanced Security Hardening Verification", () => {
+    it("should immediately revoke access when account status changes to SUSPENDED", async () => {
+      // 1. Login teacher to get valid session
+      const loginRes = await fetch(`${baseUrl}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "prof.sharma@college.edu",
+          password: "Password@123",
+        }),
+      });
+      expect(loginRes.status).toBe(200);
+      const activeTeacherCookie = extractCookie(loginRes);
+
+      // Verify token works
+      const testRes = await fetch(`${baseUrl}/auth/me`, {
+        headers: { Cookie: activeTeacherCookie },
+      });
+      expect(testRes.status).toBe(200);
+
+      // 2. Suspend teacher in database
+      await prisma.user.update({
+        where: { email: "prof.sharma@college.edu" },
+        data: { status: UserStatus.SUSPENDED },
+      });
+
+      // 3. Verify next request with same token fails immediately with 403 ACCOUNT_INACTIVE
+      const revokedRes = await fetch(`${baseUrl}/auth/me`, {
+        headers: { Cookie: activeTeacherCookie },
+      });
+      expect(revokedRes.status).toBe(403);
+      const body = await revokedRes.json();
+      expect(body.error.code).toBe("ACCOUNT_INACTIVE");
+
+      // Restore teacher to ACTIVE for any subsequent operations
+      await prisma.user.update({
+        where: { email: "prof.sharma@college.edu" },
+        data: { status: UserStatus.ACTIVE },
+      });
+    });
+
+    it("should reject state-changing cookie request if malicious Origin is detected (CSRF protection)", async () => {
+      // Login admin
+      const loginRes = await fetch(`${baseUrl}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "admin@college.edu",
+          password: "Password@123",
+        }),
+      });
+      const validAdminCookie = extractCookie(loginRes);
+
+      // Attacker cross-origin site attempts to trigger POST /auth/logout with cookie
+      const csrfAttackRes = await fetch(`${baseUrl}/auth/logout`, {
+        method: "POST",
+        headers: {
+          Cookie: validAdminCookie,
+          Origin: "http://malicious-attacker-site.com",
+        },
+      });
+
+      expect(csrfAttackRes.status).toBe(403);
+      const body = await csrfAttackRes.json();
+      expect(body.error.code).toBe("CSRF_DETECTED");
+      expect(body.error.message).toContain("invalid origin");
+    });
+
+    it("should forbid teacher from accessing student profiles (403)", async () => {
+      // Login teacher
+      const loginRes = await fetch(`${baseUrl}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "prof.sharma@college.edu",
+          password: "Password@123",
+        }),
+      });
+      const validTeacherCookie = extractCookie(loginRes);
+
+      const aaravStudent = await prisma.student.findFirst({
+        where: { rollNumber: "CS001" },
+      });
+
+      const res = await fetch(`${baseUrl}/students/${aaravStudent!.id}`, {
+        headers: { Cookie: validTeacherCookie },
+      });
+
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.error.code).toBe("FORBIDDEN");
+    });
+
+    it("should never expose password hashes, biometric descriptors, or tokens in profile or student responses", async () => {
+      // 1. Check /auth/me for student
+      const studentLogin = await fetch(`${baseUrl}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "student.aarav@college.edu",
+          password: "Password@123",
+        }),
+      });
+      const studentCookie = extractCookie(studentLogin);
+
+      const meRes = await fetch(`${baseUrl}/auth/me`, {
+        headers: { Cookie: studentCookie },
+      });
+      expect(meRes.status).toBe(200);
+      const meBody = await meRes.json();
+
+      expect(meBody.data).not.toHaveProperty("passwordHash");
+      expect(meBody.data).not.toHaveProperty("token");
+      if (meBody.data.studentProfile?.faceEnrollment) {
+        expect(meBody.data.studentProfile.faceEnrollment).not.toHaveProperty("descriptors");
+      }
+
+      // 2. Check /students/:id for admin
+      const adminLogin = await fetch(`${baseUrl}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "admin@college.edu",
+          password: "Password@123",
+        }),
+      });
+      const adminCookie = extractCookie(adminLogin);
+
+      const aaravStudent = await prisma.student.findFirst({
+        where: { rollNumber: "CS001" },
+      });
+
+      const studentRes = await fetch(`${baseUrl}/students/${aaravStudent!.id}`, {
+        headers: { Cookie: adminCookie },
+      });
+      expect(studentRes.status).toBe(200);
+      const studentBody = await studentRes.json();
+
+      expect(studentBody.data).not.toHaveProperty("passwordHash");
+      if (studentBody.data.faceEnrollment) {
+        expect(studentBody.data.faceEnrollment).not.toHaveProperty("descriptors");
+      }
     });
   });
 });

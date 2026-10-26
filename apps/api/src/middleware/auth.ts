@@ -26,6 +26,7 @@ interface JwtPayload {
   userId: string;
   role: Role;
   email: string;
+  tokenVersion?: number;
 }
 
 export async function authenticate(
@@ -48,10 +49,14 @@ export async function authenticate(
       throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     }
 
-    // 2. Verify signature and claims
+    // 2. Verify signature, algorithm, issuer, and audience
     let decoded: JwtPayload;
     try {
-      decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+      decoded = jwt.verify(token, env.JWT_SECRET, {
+        algorithms: ["HS256"],
+        issuer: env.JWT_ISSUER,
+        audience: env.JWT_AUDIENCE,
+      }) as JwtPayload;
     } catch {
       throw new AppError("Invalid or expired session token", 401, "UNAUTHORIZED");
     }
@@ -74,7 +79,12 @@ export async function authenticate(
       throw new AppError("Account is pending approval or inactive", 403, "ACCOUNT_INACTIVE");
     }
 
-    // 4. Attach safe authenticated user context
+    // 4. Invalidate tokens with mismatched tokenVersion (e.g. after logout or password change)
+    if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+      throw new AppError("Session has been terminated or logged out", 401, "UNAUTHORIZED");
+    }
+
+    // 5. Attach safe authenticated user context
     req.user = {
       id: user.id,
       name: user.name,

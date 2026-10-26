@@ -127,35 +127,37 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Demo quick fill shortcuts */}
-          <div className="pt-2 border-t border-border">
-            <span className="text-[11px] text-muted-foreground font-medium block mb-2 text-center">
-              Quick-fill development credentials:
-            </span>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => fillCredentials("admin@college.edu")}
-                className="py-1 px-2 rounded text-[11px] border border-border hover:bg-accent text-center font-medium"
-              >
-                Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => fillCredentials("prof.sharma@college.edu")}
-                className="py-1 px-2 rounded text-[11px] border border-border hover:bg-accent text-center font-medium"
-              >
-                Teacher
-              </button>
-              <button
-                type="button"
-                onClick={() => fillCredentials("student.aarav@college.edu")}
-                className="py-1 px-2 rounded text-[11px] border border-border hover:bg-accent text-center font-medium"
-              >
-                Student
-              </button>
+          {/* Demo quick fill shortcuts (development only - stripped in production) */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="pt-2 border-t border-border">
+              <span className="text-[11px] text-muted-foreground font-medium block mb-2 text-center">
+                Quick-fill development credentials:
+              </span>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => fillCredentials("admin@college.edu")}
+                  className="py-1 px-2 rounded text-[11px] border border-border hover:bg-accent text-center font-medium"
+                >
+                  Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillCredentials("prof.sharma@college.edu")}
+                  className="py-1 px-2 rounded text-[11px] border border-border hover:bg-accent text-center font-medium"
+                >
+                  Teacher
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillCredentials("student.aarav@college.edu")}
+                  className="py-1 px-2 rounded text-[11px] border border-border hover:bg-accent text-center font-medium"
+                >
+                  Student
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Footer info */}
