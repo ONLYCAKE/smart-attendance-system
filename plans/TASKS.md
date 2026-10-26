@@ -55,15 +55,16 @@
 
 ### T-005: PostgreSQL & Prisma Schema Implementation
 - **Requirement:** Section 4, `docs/DATABASE_DESIGN.md`, ADR-001
-- **Status:** NOT_STARTED
+- **Status:** DONE
 - **Dependencies:** T-001
-- **Affected Files:** `apps/api/prisma/schema.prisma`, `apps/api/prisma/seed.ts`
+- **Affected Files:** `apps/api/prisma/schema.prisma`, `apps/api/prisma/migrations/20261026111636_init_smart_attendance_schema/migration.sql`, `apps/api/prisma/seed.ts`, `apps/api/test/database-invariants.test.ts`
 - **Acceptance Criteria:**
-  - Models created: `User`, `Student`, `Department`, `AcademicYear`, `Class`, `Subject`, `TeacherAssignment`, `TimetableEntry`, `AttendanceSession`, `AttendanceRecord`, `FaceEnrollment`, `AuditLog`, `Notification`.
+  - Models created: `User`, `Student`, `Department`, `AcademicYear`, `Class`, `Subject`, `TeacherAssignment`, `TimetableEntry`, `AttendanceSession`, `AttendanceRecord`, `FaceEnrollment`, `AuditLog`, `Notification`, `SystemSetting`.
   - Unique constraint on `(studentId, sessionId)` on `AttendanceRecord`.
   - Unique constraints on roll numbers within cohort scope and email on `User`.
-  - Initial migrations generated and applied to the database.
-  - Seed script with sample institution, departments, admin, teachers, and subjects.
+  - Initial migrations generated and applied to the local PostgreSQL database (`smart_attendance_dev`).
+  - Seed script with sample institution, departments, admin, teachers, subjects, timetable, students, and face enrollment.
+  - Integration tests verifying duplicate prevention, foreign key restrictions, biometric deletion behavior, and transaction rollbacks.
 
 ---
 
