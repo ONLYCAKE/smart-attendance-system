@@ -1,0 +1,306 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum StudentStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  GRADUATED
+}
+
+enum SessionStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum AttendanceMethod {
+  FACE_RECOGNITION
+  MANUAL_TEACHER
+  MANUAL_ADMIN
+}
+
+model User {
+  id           String     @id @default(uuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(STUDENT)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  studentProfile     Student?            @relation("UserStudent")
+  teacherAssignments TeacherAssignment[] @relation("TeacherUser")
+  managedSessions    AttendanceSession[] @relation("TeacherSessions")
+  markedRecords      AttendanceRecord[]  @relation("MarkedByUser")
+  auditLogs          AuditLog[]          @relation("UserAuditLogs")
+
+  @@index([email])
+  @@index([role])
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  students Student[]
+  classes  Class[]
+  subjects Subject[]
+}
+
+model AcademicYear {
+  id        String    @id @default(uuid())
+  label     String    @unique // e.g. "2025-2026"
+  startDate DateTime
+  endDate   DateTime
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  students Student[]
+  classes  Class[]
+}
+
+model Class {
+  id             String   @id @default(uuid())
+  departmentId   String
+  academicYearId String
+  semesterNumber Int
+  division       String   // e.g. "A", "B"
+  label          String   // e.g. "CS-Sem4-DivA"
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  department         Department          @relation(fields: [departmentId], references: [id])
+  academicYear       AcademicYear        @relation(fields: [academicYearId], references: [id])
+  students           Student[]
+  teacherAssignments TeacherAssignment[]
+  timetableEntries   TimetableEntry[]
+  attendanceSessions AttendanceSession[]
+
+  @@unique([departmentId, academicYearId, semesterNumber, division])
+  @@index([departmentId])
+  @@index([academicYearId])
+}
+
+model Subject {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  name         String
+  departmentId String
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  department         Department          @relation(fields: [departmentId], references: [id])
+  teacherAssignments TeacherAssignment[]
+  timetableEntries   TimetableEntry[]
+  attendanceSessions AttendanceSession[]
+
+  @@index([departmentId])
+}
+
+model Student {
+  id             String        @id @default(uuid())
+  userId         String?       @unique
+  rollNumber     String
+  name           String
+  email          String        @unique
+  departmentId   String
+  academicYearId String
+  classId        String
+  status         StudentStatus @default(PENDING)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user              User?              @relation("UserStudent", fields: [userId], references: [id], onDelete: SetNull)
+  department        Department         @relation(fields: [departmentId], references: [id])
+  academicYear      AcademicYear       @relation(fields: [academicYearId], references: [id])
+  class             Class              @relation(fields: [classId], references: [id])
+  faceEnrollment    FaceEnrollment?
+  attendanceRecords AttendanceRecord[]
+  notifications     Notification[]
+
+  @@unique([classId, rollNumber])
+  @@index([rollNumber])
+  @@index([email])
+  @@index([status])
+  @@index([departmentId])
+  @@index([classId])
+}
+
+model TeacherAssignment {
+  id            String   @id @default(uuid())
+  teacherUserId String
+  classId       String
+  subjectId     String
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  teacher          User             @relation("TeacherUser", fields: [teacherUserId], references: [id])
+  class            Class            @relation(fields: [classId], references: [id])
+  subject          Subject          @relation(fields: [subjectId], references: [id])
+  timetableEntries TimetableEntry[]
+
+  @@unique([teacherUserId, classId, subjectId])
+  @@index([teacherUserId])
+  @@index([classId])
+}
+
+model TimetableEntry {
+  id                  String    @id @default(uuid())
+  classId             String
+  subjectId           String
+  teacherAssignmentId String
+  dayOfWeek           Int       // 1 (Monday) to 7 (Sunday)
+  startTime           String    // e.g. "09:00"
+  endTime             String    // e.g. "10:00"
+  room                String?
+  effectiveFrom       DateTime  @default(now())
+  effectiveTo         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  class             Class               @relation(fields: [classId], references: [id])
+  subject           Subject             @relation(fields: [subjectId], references: [id])
+  teacherAssignment TeacherAssignment   @relation(fields: [teacherAssignmentId], references: [id])
+  sessions          AttendanceSession[]
+
+  @@index([classId, dayOfWeek])
+}
+
+model AttendanceSession {
+  id               String        @id @default(uuid())
+  timetableEntryId String?
+  classId          String
+  subjectId        String
+  teacherUserId    String
+  startsAt         DateTime      @default(now())
+  endsAt           DateTime?
+  status           SessionStatus @default(ACTIVE)
+  createdAt        DateTime      @default(now())
+  closedAt         DateTime?
+
+  timetableEntry TimetableEntry?    @relation(fields: [timetableEntryId], references: [id], onDelete: SetNull)
+  class          Class              @relation(fields: [classId], references: [id])
+  subject        Subject            @relation(fields: [subjectId], references: [id])
+  teacher        User               @relation("TeacherSessions", fields: [teacherUserId], references: [id])
+  records        AttendanceRecord[]
+
+  @@index([classId, status])
+  @@index([teacherUserId])
+  @@index([startsAt])
+}
+
+model FaceEnrollment {
+  id           String    @id @default(uuid())
+  studentId    String    @unique
+  provider     String    @default("human")
+  modelVersion String    @default("v1")
+  descriptors  String    // Encrypted or stringified normalized embeddings
+  status       String    @default("ACTIVE")
+  consentedAt  DateTime  @default(now())
+  enrolledAt   DateTime  @default(now())
+  deletedAt    DateTime?
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+}
+
+model AttendanceRecord {
+  id               String           @id @default(uuid())
+  studentId        String
+  sessionId        String
+  status           AttendanceStatus @default(PRESENT)
+  method           AttendanceMethod @default(FACE_RECOGNITION)
+  confidence       Float?
+  markedAt         DateTime         @default(now())
+  markedByUserId   String?
+  correctionReason String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  student  Student           @relation(fields: [studentId], references: [id])
+  session  AttendanceSession @relation(fields: [sessionId], references: [id])
+  markedBy User?             @relation("MarkedByUser", fields: [markedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, sessionId])
+  @@index([sessionId])
+  @@index([studentId])
+  @@index([markedAt])
+  @@index([status])
+}
+
+model Notification {
+  id         String    @id @default(uuid())
+  studentId  String
+  type       String    // e.g. "LOW_ATTENDANCE", "CONSENT_REMINDER"
+  message    String
+  status     String    @default("UNREAD")
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, status])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  action      String   // e.g. "STUDENT_APPROVED", "ATTENDANCE_OVERRIDE", "BIOMETRIC_DELETED"
+  entityType  String   // e.g. "Student", "AttendanceRecord"
+  entityId    String
+  metadata    String?  // JSON stringified non-sensitive context
+  createdAt   DateTime @default(now())
+
+  actor User? @relation("UserAuditLogs", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique // e.g. "LOW_ATTENDANCE_THRESHOLD_PERCENT"
+  value       String   // e.g. "75"
+  description String?
+  updatedAt   DateTime @updatedAt
+}
