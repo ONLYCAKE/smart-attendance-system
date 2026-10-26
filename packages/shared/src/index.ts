@@ -85,6 +85,53 @@ export const StudentRegisterSchema = z.object({
 });
 export type StudentRegisterInput = z.infer<typeof StudentRegisterSchema>;
 
+export const DepartmentSchema = z.object({
+  name: z.string().min(2, "Department name must be at least 2 characters"),
+  code: z.string().min(2, "Department code must be at least 2 characters").toUpperCase(),
+});
+export type DepartmentInput = z.infer<typeof DepartmentSchema>;
+
+export const AcademicYearSchema = z.object({
+  label: z.string().min(4, "Academic year label required (e.g. 2025-2026)"),
+  startDate: z.string().datetime("Invalid start date"),
+  endDate: z.string().datetime("Invalid end date"),
+});
+export type AcademicYearInput = z.infer<typeof AcademicYearSchema>;
+
+export const ClassSchema = z.object({
+  departmentId: z.string().uuid("Invalid department ID"),
+  academicYearId: z.string().uuid("Invalid academic year ID"),
+  semesterNumber: z.number().int().min(1).max(12),
+  division: z.string().min(1, "Division required (e.g. A, B)"),
+  label: z.string().min(2, "Class label required"),
+});
+export type ClassInput = z.infer<typeof ClassSchema>;
+
+export const SubjectSchema = z.object({
+  code: z.string().min(2, "Subject code required").toUpperCase(),
+  name: z.string().min(2, "Subject name required"),
+  departmentId: z.string().uuid("Invalid department ID"),
+});
+export type SubjectInput = z.infer<typeof SubjectSchema>;
+
+export const TeacherAssignmentSchema = z.object({
+  teacherUserId: z.string().uuid("Invalid teacher user ID"),
+  classId: z.string().uuid("Invalid class ID"),
+  subjectId: z.string().uuid("Invalid subject ID"),
+});
+export type TeacherAssignmentInput = z.infer<typeof TeacherAssignmentSchema>;
+
+export const TimetableEntrySchema = z.object({
+  classId: z.string().uuid("Invalid class ID"),
+  subjectId: z.string().uuid("Invalid subject ID"),
+  teacherAssignmentId: z.string().uuid("Invalid teacher assignment ID"),
+  dayOfWeek: z.number().int().min(1).max(7),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Format must be HH:MM"),
+  endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Format must be HH:MM"),
+  room: z.string().optional(),
+});
+export type TimetableEntryInput = z.infer<typeof TimetableEntrySchema>;
+
 export const SessionCreateSchema = z.object({
   classId: z.string().uuid("Invalid class ID"),
   subjectId: z.string().uuid("Invalid subject ID"),
@@ -93,6 +140,19 @@ export const SessionCreateSchema = z.object({
   endsAt: z.string().datetime().optional(),
 });
 export type SessionCreateInput = z.infer<typeof SessionCreateSchema>;
+
+export const FaceEnrollmentSubmitSchema = z.object({
+  consentVersion: z.string().default("1.0"),
+  modelVersion: z.string().default("v1"),
+  provider: z.string().default("human"),
+  descriptors: z.string().min(10, "Valid descriptor array required"),
+});
+export type FaceEnrollmentSubmitInput = z.infer<typeof FaceEnrollmentSubmitSchema>;
+
+export const FaceRecognitionRecognizeSchema = z.object({
+  descriptor: z.array(z.number()).min(64, "Descriptor vector must contain numeric floats"),
+});
+export type FaceRecognitionRecognizeInput = z.infer<typeof FaceRecognitionRecognizeSchema>;
 
 export const AttendanceMarkSchema = z.object({
   studentId: z.string().uuid("Invalid student ID"),
@@ -107,3 +167,9 @@ export const AttendanceCorrectionSchema = z.object({
   correctionReason: z.string().min(5, "Correction reason must be at least 5 characters"),
 });
 export type AttendanceCorrectionInput = z.infer<typeof AttendanceCorrectionSchema>;
+
+export const SystemSettingsUpdateSchema = z.object({
+  key: z.string().min(1),
+  value: z.string().min(1),
+});
+export type SystemSettingsUpdateInput = z.infer<typeof SystemSettingsUpdateSchema>;

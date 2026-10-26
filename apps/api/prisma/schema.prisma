@@ -228,15 +228,17 @@ model AttendanceSession {
 }
 
 model FaceEnrollment {
-  id           String    @id @default(uuid())
-  studentId    String    @unique
-  provider     String    @default("human")
-  modelVersion String    @default("v1")
-  descriptors  String    // Encrypted or stringified normalized embeddings
-  status       String    @default("ACTIVE")
-  consentedAt  DateTime  @default(now())
-  enrolledAt   DateTime  @default(now())
-  deletedAt    DateTime?
+  id               String    @id @default(uuid())
+  studentId        String    @unique
+  provider         String    @default("human")
+  modelVersion     String    @default("v1")
+  descriptors      String    // Encrypted or stringified normalized embeddings
+  status           String    @default("ACTIVE")
+  consentVersion   String    @default("1.0")
+  consentedAt      DateTime  @default(now())
+  consentRevokedAt DateTime?
+  enrolledAt       DateTime  @default(now())
+  deletedAt        DateTime?
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 

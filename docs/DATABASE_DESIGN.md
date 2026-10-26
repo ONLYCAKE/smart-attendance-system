@@ -37,16 +37,19 @@
 `id`, `timetableEntryId` (optional for ad-hoc approved sessions), `classId`, `subjectId`, `teacherUserId`, `startsAt`, `endsAt`, `status`, `createdAt`, `closedAt`.
 
 ### FaceEnrollment
-`id`, `studentId`, `provider`, `modelVersion`, `descriptors` or provider-specific enrollment reference, `status`, `consentedAt`, `enrolledAt`, `deletedAt`.
+`id`, `studentId`, `provider`, `modelVersion`, `descriptors` (encrypted or stringified normalized embeddings), `status`, `consentVersion`, `consentedAt`, `consentRevokedAt`, `enrolledAt`, `deletedAt`.
 
 ### AttendanceRecord
-`id`, `studentId`, `sessionId`, `status`, `method`, `markedAt`, `markedByUserId` (nullable for system attribution), `correctionReason` (optional), timestamps.
+`id`, `studentId`, `sessionId`, `status`, `method`, `confidence`, `markedAt`, `markedByUserId` (nullable for system attribution), `correctionReason` (optional), timestamps.
 
 ### Notification
 `id`, `studentId`, `type`, `message`, `status`, `createdAt`, `resolvedAt`.
 
 ### AuditLog
 `id`, `actorUserId`, `action`, `entityType`, `entityId`, `metadata` (non-sensitive only), `createdAt`.
+
+### SystemSetting
+`id`, `key` (unique), `value`, `description`, `updatedAt` (used for configurable low-attendance threshold defaulting to 75% and institutional timezone).
 
 ## Required constraints
 - Unique roll number in the agreed institution scope.
