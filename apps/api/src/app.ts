@@ -6,6 +6,8 @@ import rateLimit from "express-rate-limit";
 import { env } from "./config/env.js";
 import { errorHandler, AppError } from "./middleware/errorHandler.js";
 import { healthRouter } from "./routes/health.js";
+import { authRouter } from "./modules/auth/auth.routes.js";
+import { studentsRouter } from "./modules/students/students.routes.js";
 
 export function createApp(): Express {
   const app = express();
@@ -39,6 +41,8 @@ export function createApp(): Express {
 
   // Health and API routes
   app.use("/api/v1/health", healthRouter);
+  app.use("/api/v1/auth", authRouter);
+  app.use("/api/v1/students", studentsRouter);
 
   // 404 handler
   app.use((_req: Request, _res: Response) => {

@@ -72,9 +72,9 @@
 
 ### T-010: Authentication (JWT & HTTP-Only Cookies)
 - **Requirement:** FR-01, Section 7, `docs/SECURITY.md`
-- **Status:** NOT_STARTED
+- **Status:** DONE
 - **Dependencies:** T-003, T-005
-- **Affected Files:** `apps/api/src/modules/auth/*`, `apps/web/src/features/auth/*`
+- **Affected Files:** `apps/api/src/modules/auth/*`, `apps/web/src/features/auth/*`, `apps/web/src/app/login/page.tsx`
 - **Acceptance Criteria:**
   - `POST /api/v1/auth/login`: verifies password with secure hash, issues HTTP-only cookie or signed JWT.
   - `POST /api/v1/auth/logout`: clears auth cookie and invalidates session.
@@ -83,7 +83,7 @@
 
 ### T-011: Role & Resource Authorization Middleware
 - **Requirement:** FR-01, Section 7
-- **Status:** NOT_STARTED
+- **Status:** DONE
 - **Dependencies:** T-010
 - **Affected Files:** `apps/api/src/middleware/auth.ts`, `apps/api/src/middleware/rbac.ts`
 - **Acceptance Criteria:**
@@ -94,9 +94,9 @@
 
 ### T-012: Student Self-Registration & Admin Approval Workflow
 - **Requirement:** FR-03, ADR-004
-- **Status:** NOT_STARTED
+- **Status:** DONE
 - **Dependencies:** T-010, T-011
-- **Affected Files:** `apps/api/src/modules/students/*`, `apps/web/src/features/students/*`
+- **Affected Files:** `apps/api/src/modules/students/*`, `apps/web/src/features/auth/*`, `apps/web/src/app/register/page.tsx`
 - **Acceptance Criteria:**
   - Public `POST /api/v1/auth/register` creates student account with status `PENDING`.
   - Pending accounts cannot log in for attendance or enroll biometrics.

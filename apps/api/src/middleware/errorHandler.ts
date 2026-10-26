@@ -38,9 +38,10 @@ export function errorHandler(
     return;
   }
 
-  if (err instanceof ZodError) {
-    const formattedDetails = err.issues.map((issue) => ({
-      field: issue.path.join("."),
+  if (err instanceof ZodError || err.name === "ZodError" || (err && typeof err === "object" && "issues" in err)) {
+    const issues = (err as ZodError).issues || [];
+    const formattedDetails = issues.map((issue) => ({
+      field: Array.isArray(issue.path) ? issue.path.join(".") : undefined,
       message: issue.message,
     }));
 
