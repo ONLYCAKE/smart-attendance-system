@@ -7,12 +7,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginSchema, LoginInput, UserRole } from "@smart-attendance/shared";
 import { useAuth } from "@/features/auth/context/AuthContext";
-import { ScanFace, Lock, Mail, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
+import { ThemeToggle } from "@/features/theme";
+import { ScanFace, Lock, Mail, Eye, EyeOff, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -31,12 +33,12 @@ export default function LoginPage() {
     setErrorMessage(null);
     try {
       const user = await login(data);
-      if (user.role === UserRole.ADMIN) {
+      if (user.mustChangePassword) {
+        router.push("/reset-password");
+      } else if (user.role === UserRole.ADMIN) {
         router.push("/admin");
-      } else if (user.role === UserRole.TEACHER) {
-        router.push("/teacher");
       } else {
-        router.push("/student");
+        router.push("/dashboard");
       }
     } catch (err: any) {
       setErrorMessage(err.message || "Invalid email or password");
@@ -50,7 +52,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-muted/20">
+    <div className="min-h-screen relative flex items-center justify-center p-4 bg-muted/20">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle showLabel />
+      </div>
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
@@ -62,7 +67,7 @@ export default function LoginPage() {
           </Link>
           <h1 className="text-xl font-bold tracking-tight">Sign in to your account</h1>
           <p className="text-xs text-muted-foreground">
-            Enter your institutional email and password to access your portal
+            Enter your email and password to access your portal
           </p>
         </div>
 
@@ -77,12 +82,12 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">Institutional Email</label>
+              <label className="text-xs font-medium text-foreground">Email Address</label>
               <div className="relative">
                 <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="email"
-                  placeholder="name@college.edu"
+                  placeholder="name@example.com"
                   {...register("email")}
                   className="w-full h-9 pl-9 pr-3 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring"
                 />
@@ -97,11 +102,24 @@ export default function LoginPage() {
               <div className="relative">
                 <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   {...register("password")}
-                  className="w-full h-9 pl-9 pr-3 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="w-full h-9 pl-9 pr-10 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-0.5"
+                  tabIndex={-1}
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
               </div>
               {errors.password && (
                 <p className="text-destructive text-[11px]">{errors.password.message}</p>
@@ -133,27 +151,13 @@ export default function LoginPage() {
               <span className="text-[11px] text-muted-foreground font-medium block mb-2 text-center">
                 Quick-fill development credentials:
               </span>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="flex justify-center">
                 <button
                   type="button"
                   onClick={() => fillCredentials("admin@college.edu")}
-                  className="py-1 px-2 rounded text-[11px] border border-border hover:bg-accent text-center font-medium"
+                  className="py-1.5 px-4 w-full rounded text-[11px] border border-border hover:bg-accent text-center font-medium transition-colors"
                 >
                   Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillCredentials("prof.sharma@college.edu")}
-                  className="py-1 px-2 rounded text-[11px] border border-border hover:bg-accent text-center font-medium"
-                >
-                  Teacher
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillCredentials("student.aarav@college.edu")}
-                  className="py-1 px-2 rounded text-[11px] border border-border hover:bg-accent text-center font-medium"
-                >
-                  Student
                 </button>
               </div>
             </div>
@@ -162,10 +166,7 @@ export default function LoginPage() {
 
         {/* Footer info */}
         <p className="text-center text-xs text-muted-foreground">
-          New student?{" "}
-          <Link href="/register" className="text-primary font-medium hover:underline">
-            Register here
-          </Link>
+          Student and faculty accounts are provisioned exclusively by college administration.
         </p>
       </div>
     </div>

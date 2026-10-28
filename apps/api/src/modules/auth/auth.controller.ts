@@ -67,12 +67,48 @@ export class AuthController {
     }
   }
 
+  async getRegistrationOptions(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const options = await authService.getRegistrationOptions();
+      res.status(200).json({
+        success: true,
+        data: options,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const user = await authService.getMe(req.user!.id);
       res.status(200).json({
         success: true,
         data: user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateFirstLoginPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { password } = req.body || {};
+      const { user, token, message } = await authService.updateFirstLoginPassword(
+        req.user!.id,
+        password
+      );
+
+      // Refresh secure cookie with updated token
+      res.cookie(COOKIE_NAME, token, COOKIE_OPTIONS);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          user,
+          token,
+          message,
+        },
       });
     } catch (error) {
       next(error);

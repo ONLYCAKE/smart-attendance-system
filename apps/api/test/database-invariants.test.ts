@@ -7,9 +7,33 @@ describe("Database Relational Invariants & Concurrency Guards", () => {
   beforeAll(async () => {
     prisma = new PrismaClient();
     await prisma.$connect();
+    await prisma.attendanceRecord.deleteMany({
+      where: { student: { email: "temp.bio.test@college.edu" } },
+    });
+    await prisma.faceEnrollment.deleteMany({
+      where: { student: { email: "temp.bio.test@college.edu" } },
+    });
+    await prisma.biometricConsent.deleteMany({
+      where: { student: { email: "temp.bio.test@college.edu" } },
+    });
+    await prisma.student.deleteMany({
+      where: { email: "temp.bio.test@college.edu" },
+    });
   });
 
   afterAll(async () => {
+    await prisma.attendanceRecord.deleteMany({
+      where: { student: { email: "temp.bio.test@college.edu" } },
+    });
+    await prisma.faceEnrollment.deleteMany({
+      where: { student: { email: "temp.bio.test@college.edu" } },
+    });
+    await prisma.biometricConsent.deleteMany({
+      where: { student: { email: "temp.bio.test@college.edu" } },
+    });
+    await prisma.student.deleteMany({
+      where: { email: "temp.bio.test@college.edu" },
+    });
     await prisma.$disconnect();
   });
 
@@ -33,7 +57,7 @@ describe("Database Relational Invariants & Concurrency Guards", () => {
     expect(classWithDept?.department.code).toBe("CSE");
     expect(classWithDept?.academicYear.label).toBe("2025-2026");
     expect(classWithDept?.teacherAssignments.length).toBeGreaterThan(0);
-    expect(classWithDept?.teacherAssignments[0]?.subject.code).toBe("CS401");
+    expect(classWithDept?.teacherAssignments.some((ta) => ta.subject.code === "CS401")).toBe(true);
   });
 
   it("Invariant 2: AttendanceRecord unique constraint prevents duplicate attendance", async () => {
@@ -110,18 +134,28 @@ describe("Database Relational Invariants & Concurrency Guards", () => {
       },
     });
 
-    // 1. Create Face Enrollment with recorded consent
+    // 1. Create Biometric Consent
+    const consent = await prisma.biometricConsent.create({
+      data: {
+        studentId: ephemeralStudent.id,
+        status: "GRANTED",
+        consentVersion: "1.0",
+        consentedAt: new Date(),
+      },
+    });
+    expect(consent.revokedAt).toBeNull();
+
+    // Create Face Enrollment
     const enrollment = await prisma.faceEnrollment.create({
       data: {
         studentId: ephemeralStudent.id,
         provider: "human",
         modelVersion: "v1",
         descriptors: JSON.stringify([0.1, 0.2, 0.3]),
-        consentVersion: "1.0",
         consentedAt: new Date(),
       },
     });
-    expect(enrollment.consentRevokedAt).toBeNull();
+    expect(enrollment.id).toBeDefined();
 
     // 2. Mark attendance for this student
     const record = await prisma.attendanceRecord.create({
@@ -135,15 +169,16 @@ describe("Database Relational Invariants & Concurrency Guards", () => {
     expect(record.id).toBeDefined();
 
     // 3. Revoke consent (biometric deactivation)
-    const revoked = await prisma.faceEnrollment.update({
+    const revoked = await prisma.biometricConsent.update({
       where: { studentId: ephemeralStudent.id },
       data: {
-        status: "CONSENT_REVOKED",
-        consentRevokedAt: new Date(),
+        status: "REVOKED",
+        revokedAt: new Date(),
+        revocationReason: "Student requested deactivation",
       },
     });
-    expect(revoked.status).toBe("CONSENT_REVOKED");
-    expect(revoked.consentRevokedAt).not.toBeNull();
+    expect(revoked.status).toBe("REVOKED");
+    expect(revoked.revokedAt).not.toBeNull();
 
     // 4. Delete biometric descriptors permanently
     await prisma.faceEnrollment.delete({

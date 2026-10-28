@@ -16,6 +16,12 @@ const envSchema = z
     JWT_AUDIENCE: z.string().default("smart-attendance-client"),
     SESSION_SECRET: z.string().min(16).default("dev_session_secret_must_be_changed_in_prod_12345"),
     APP_ORIGIN: z.string().default("http://localhost:3000"),
+    TRUST_PROXY: z.string().default("1"),
+    BIOMETRIC_LEDGER_PATH: z.string().default("./data/biometric-ledger/biometric-lifecycle-ledger.jsonl"),
+    BIOMETRIC_LEDGER_KEY: z.string().min(16).optional(),
+    BIOMETRIC_LEDGER_KEY_ID: z.string().default("k1"),
+    ALLOW_LEGACY_UNKEYED_LEDGER: z.coerce.boolean().default(process.env.NODE_ENV !== "production"),
+    BIOMETRIC_ENCRYPTION_KEY: z.string().min(16).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === "production") {
@@ -37,6 +43,20 @@ const envSchema = z
           code: z.ZodIssueCode.custom,
           path: ["SESSION_SECRET"],
           message: "In production, SESSION_SECRET must be at least 32 characters and cannot use default dev secret",
+        });
+      }
+      if (data.BIOMETRIC_LEDGER_KEY && data.BIOMETRIC_LEDGER_KEY.length < 32) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["BIOMETRIC_LEDGER_KEY"],
+          message: "In production, BIOMETRIC_LEDGER_KEY must be at least 32 characters",
+        });
+      }
+      if (data.BIOMETRIC_ENCRYPTION_KEY && data.BIOMETRIC_ENCRYPTION_KEY.length < 32) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["BIOMETRIC_ENCRYPTION_KEY"],
+          message: "In production, BIOMETRIC_ENCRYPTION_KEY must be at least 32 characters",
         });
       }
     }

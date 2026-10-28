@@ -134,7 +134,12 @@ async function main() {
   });
 
   const subjectDsa = await prisma.subject.upsert({
-    where: { code: "CS401" },
+    where: {
+      departmentId_code: {
+        departmentId: cseDept.id,
+        code: "CS401",
+      },
+    },
     update: { name: "Data Structures & Algorithms", active: true },
     create: {
       code: "CS401",
@@ -145,7 +150,12 @@ async function main() {
   });
 
   const subjectDbms = await prisma.subject.upsert({
-    where: { code: "CS402" },
+    where: {
+      departmentId_code: {
+        departmentId: cseDept.id,
+        code: "CS402",
+      },
+    },
     update: { name: "Database Management Systems", active: true },
     create: {
       code: "CS402",
@@ -159,13 +169,12 @@ async function main() {
   console.log("Configuring Teacher Assignment and Timetable...");
   const assignment1 = await prisma.teacherAssignment.upsert({
     where: {
-      teacherUserId_classId_subjectId: {
-        teacherUserId: teacherUser1.id,
+      classId_subjectId: {
         classId: classCohort.id,
         subjectId: subjectDsa.id,
       },
     },
-    update: { active: true },
+    update: { active: true, teacherUserId: teacherUser1.id },
     create: {
       teacherUserId: teacherUser1.id,
       classId: classCohort.id,

@@ -1,0 +1,19 @@
+{
+  "name": "@smart-attendance/recognition-spike",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Technical spike evaluating Human.js and biometric matching models",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "benchmark": "tsx src/benchmark.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.6"
+  }
+}

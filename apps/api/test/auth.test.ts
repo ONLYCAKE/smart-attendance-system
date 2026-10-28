@@ -38,7 +38,7 @@ describe("T-010: Authentication and Authorization Module", () => {
   });
 
   afterAll(async () => {
-    const testEmails = ["rohan.varma@college.edu", "another.unique.email@college.edu"];
+    const testEmails = ["rohan.varma@college.edu", "another.unique.email@college.edu", "kavita.rao@college.edu"];
     await prisma.attendanceRecord.deleteMany({ where: { student: { email: { in: testEmails } } } });
     await prisma.faceEnrollment.deleteMany({ where: { student: { email: { in: testEmails } } } });
     await prisma.student.deleteMany({ where: { email: { in: testEmails } } });
@@ -227,6 +227,17 @@ describe("T-010: Authentication and Authorization Module", () => {
       classId = cohort!.id;
     });
 
+    it("should provide public registration options (departments and classes)", async () => {
+      const res = await fetch(`${baseUrl}/auth/registration-options`);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.success).toBe(true);
+      expect(Array.isArray(body.data.departments)).toBe(true);
+      expect(Array.isArray(body.data.classes)).toBe(true);
+      expect(body.data.departments.length).toBeGreaterThan(0);
+      expect(body.data.classes.length).toBeGreaterThan(0);
+    });
+
     it("should register a new student in PENDING status", async () => {
       const res = await fetch(`${baseUrl}/auth/register`, {
         method: "POST",
@@ -394,6 +405,60 @@ describe("T-010: Authentication and Authorization Module", () => {
       const body = await res.json();
       expect(body.success).toBe(true);
       expect(body.data.user.email).toBe("rohan.varma@college.edu");
+    });
+
+    it("should auto-generate department-scoped rollNumber formatted [DEPT]-[YEAR]-[SEQ] when student registers without class/rollNumber and is approved", async () => {
+      const dept = await prisma.department.findFirst({ where: { code: "CSE" } });
+      const cohort = await prisma.class.findFirst({ where: { label: "CSE-Sem4-A" } });
+
+      // 1. Register student with ONLY department (no classId, no rollNumber)
+      const regRes = await fetch(`${baseUrl}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Kavita Rao",
+          email: "kavita.rao@college.edu",
+          password: "SecurePass!12345",
+          departmentId: dept!.id,
+        }),
+      });
+      expect(regRes.status).toBe(201);
+      const regBody = await regRes.json();
+      expect(regBody.data.studentId).toBeDefined();
+
+      const pendingRecord = await prisma.student.findUnique({
+        where: { id: regBody.data.studentId },
+      });
+      expect(pendingRecord?.rollNumber).toMatch(/^PENDING-/);
+      expect(pendingRecord?.classId).toBeNull();
+
+      // 2. Admin approves student and allocates class
+      const adminLoginRes = await fetch(`${baseUrl}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "admin@college.edu",
+          password: "Password@123",
+        }),
+      });
+      const adminCookie = extractCookie(adminLoginRes);
+
+      const approveRes = await fetch(`${baseUrl}/students/${regBody.data.studentId}/approve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: adminCookie,
+        },
+        body: JSON.stringify({
+          classId: cohort!.id,
+        }),
+      });
+      expect(approveRes.status).toBe(200);
+      const approveBody = await approveRes.json();
+      const currentYr = new Date().getFullYear();
+      expect(approveBody.data.student.rollNumber).toMatch(new RegExp(`^CSE-${currentYr}-\\d{3}$`));
+      expect(approveBody.data.student.status).toBe(StudentStatus.ACTIVE);
+      expect(approveBody.data.student.classId).toBe(cohort!.id);
     });
   });
 

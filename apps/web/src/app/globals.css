@@ -27,6 +27,7 @@
   }
 
   .dark {
+    color-scheme: dark;
     --background: 224 71.4% 4.1%;
     --foreground: 210 20% 98%;
     --card: 224 71.4% 4.1%;
@@ -56,5 +57,26 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  select {
+    color-scheme: light;
+  }
+  .dark select {
+    color-scheme: dark;
+  }
+  select option {
+    background-color: #ffffff;
+    color: #09090b;
+  }
+  .dark select option {
+    background-color: #18181b;
+    color: #f4f4f5;
+  }
+}
+
+@layer utilities {
+  .table-compact td,
+  .table-compact th {
+    @apply px-2.5 py-2 text-xs;
   }
 }

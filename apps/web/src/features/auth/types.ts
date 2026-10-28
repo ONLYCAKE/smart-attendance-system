@@ -6,6 +6,7 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   status: UserStatus;
+  mustChangePassword?: boolean;
   studentProfile?: {
     id: string;
     rollNumber: string;
@@ -36,6 +37,7 @@ export interface LoginResponseData {
     name: string;
     email: string;
     role: UserRole;
+    mustChangePassword?: boolean;
     studentId?: string;
     rollNumber?: string;
     classId?: string;

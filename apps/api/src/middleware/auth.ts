@@ -79,8 +79,8 @@ export async function authenticate(
       throw new AppError("Account is pending approval or inactive", 403, "ACCOUNT_INACTIVE");
     }
 
-    // 4. Invalidate tokens with mismatched tokenVersion (e.g. after logout or password change)
-    if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+    // 4. Invalidate tokens with missing or mismatched tokenVersion (e.g. legacy/tampered tokens or after logout)
+    if (decoded.tokenVersion === undefined || decoded.tokenVersion !== user.tokenVersion) {
       throw new AppError("Session has been terminated or logged out", 401, "UNAUTHORIZED");
     }
 

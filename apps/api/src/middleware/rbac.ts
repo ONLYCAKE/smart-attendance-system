@@ -22,6 +22,7 @@ export function requireRoles(...allowedRoles: Role[]) {
 
 export const requireAdmin = requireRoles(Role.ADMIN);
 export const requireTeacherOrAdmin = requireRoles(Role.ADMIN, Role.TEACHER);
+export const requireStudent = requireRoles(Role.STUDENT);
 
 export function requireStudentSelfOrAdmin(
   req: Request,
@@ -33,6 +34,32 @@ export function requireStudentSelfOrAdmin(
   }
 
   if (req.user.role === Role.ADMIN) {
+    return next();
+  }
+
+  const targetStudentId = req.params.studentId || req.params.id;
+
+  if (req.user.role === Role.STUDENT && req.user.studentId === targetStudentId) {
+    return next();
+  }
+
+  throw new AppError(
+    "You are not authorized to access another student's information",
+    403,
+    "FORBIDDEN"
+  );
+}
+
+export function requireStudentSelfOrStaff(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): void {
+  if (!req.user) {
+    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  }
+
+  if (req.user.role === Role.ADMIN || req.user.role === Role.TEACHER) {
     return next();
   }
 

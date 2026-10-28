@@ -126,14 +126,15 @@ Base path: `/api/v1`
 | `GET` | `/attendance-sessions/:id` | Admin, Assigned Teacher | Returns session metadata, active status, and attendance tally. |
 | `POST` | `/attendance-sessions/:id/start` | Assigned Teacher, Admin | Transitions session status from `SCHEDULED` to `ACTIVE`. |
 | `POST` | `/attendance-sessions/:id/close` | Assigned Teacher, Admin | Transitions session status from `ACTIVE` to `COMPLETED`. |
-| `POST` | `/attendance-sessions/:id/recognize` | Assigned Teacher | Submits detected face descriptors from webcam frame. Server verifies against only students enrolled in this session's class. Automatically marks confident matches; flags ambiguous matches for review. |
+| `POST` | `/attendance-sessions/:id/recognize` | Assigned Teacher | Submits detected face descriptors from webcam frame. Server verifies against only students enrolled in this session's class. Returns candidate identity and similarity score without writing attendance (recognition alone never marks attendance). |
+| `POST` | `/attendance-sessions/:id/confirm-recognition` | Assigned Teacher | Explicitly confirms recognized student and records attendance (`FACE_RECOGNITION`). Protected by row locks, active consent checks, and manual record protection. |
 | `POST` | `/attendance-sessions/:id/records` | Assigned Teacher, Admin | Manually marks single or batch student attendance (`PRESENT`, `ABSENT`, `LATE`, `EXCUSED`). |
 
 ### Attendance Records (`/attendance-records`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
 | `GET` | `/attendance-records` | Admin, Assigned Teacher, Student (Self Only) | Query params: `sessionId`, `studentId`, `classId`, `subjectId`, `from`, `to`. Students can only query their own records. |
-| `PATCH` | `/attendance-records/:id` | Assigned Teacher, Admin | Corrects an attendance record. Requires `status` and `correctionReason`. Emits an audit log. |
+| `PATCH` | `/attendance-records/:id` | Assigned Teacher, Admin | Controlled attendance correction. Requires `status` and mandatory `correctionReason` (>= 5 chars). Permitted on active and completed sessions; forbidden on cancelled sessions. Emits `ATTENDANCE_CORRECTED` audit log. (Also available at nested route `/attendance-sessions/records/:id`). |
 
 ---
 
@@ -142,12 +143,31 @@ Base path: `/api/v1`
 ### Reports (`/reports`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/reports/dashboard` | Admin, Teacher, Student | Role-scoped KPI metrics. Admin: institution stats; Teacher: class/subject stats; Student: personal stats. |
+| `GET` | `/reports/student/me` | Student (Self Only) | Derives student identity strictly from authenticated session (`req.user.id`). Client-supplied student IDs are never accepted. Returns student profile, subject-wise percentage breakdown with $\ge 75\%$ threshold flags, overall attendance percentage (attended = `PRESENT` + `LATE`; denominator excludes cancelled sessions; returns `null` when 0 sessions held), and paginated history filterable by `subjectId`, `status`, `dateFrom`, `dateTo`. |
+| `GET` | `/reports/teacher/attendance` | Assigned Teacher, Admin | Returns aggregate metrics (`totalStudents`, `totalSessionsHeld`, `classAveragePercentage`, `belowThresholdCount`) and paginated student-level breakdown. Query params: `classId` (required), `subjectId` (optional), `dateFrom`, `dateTo`, `search` (case-insensitive name/rollNumber), `page`, `limit`. Server verifies active teacher assignment for the requested class/subject unless actor is Admin (403 `FORBIDDEN` for unassigned classes). |
+| `GET` | `/reports/admin/summary` | Admin Only | Institution-level attendance summary grouped by department and class cohorts. Query params: optional `departmentId`. Summary counts derive strictly from persisted records and active student cohorts; cancelled sessions are excluded from session denominators. Aggregations contain zero sensitive or biometric data. |
+| `GET` | `/reports/dashboard` | Admin, Teacher, Student | Role-scoped KPI metrics and chart datasets. Query params: optional `days` (7-90, default 30), optional `classId`, optional `subjectId`. Student payload: personal attendance %, eligible sessions, standing (`GOOD_STANDING`, `BELOW_THRESHOLD`, `NO_SESSIONS`), daily attendance trend, subject breakdown, and recent activity. Teacher payload: assigned classes count, total students, conducted sessions, class average %, below-threshold count, daily trend, subject performance breakdown, and recent sessions (unassigned class filter rejected with 403 `CLASS_NOT_ASSIGNED`). Admin payload: institutional totals (departments, classes, active students, sessions held, overall average %, total at-risk students), daily trend line, and departmental distribution. Excludes cancelled sessions. |
 | `GET` | `/reports/attendance` | Admin, Teacher | Aggregated subject-wise and class-wise attendance percentages. |
-| `GET` | `/reports/attendance/export` | Admin, Teacher | Exports filtered attendance reports to CSV format. |
+| `GET` | `/reports/student/me/export` | Student (Self Only) | Streams student personal attendance history as CSV. Student identity derived strictly from session (`req.user.id`). Query params: optional `subjectId`, `status`, `dateFrom`, `dateTo`. Columns: `Date, Session Time, Subject Code, Subject Name, Teacher, Status, Method, Marked At, Correction Reason`. Cancels and future scheduled sessions excluded. RFC 4180 escaped with formula injection protection and UTF-8 BOM. |
+| `GET` | `/reports/teacher/attendance/export` | Assigned Teacher, Admin | Streams class attendance report as CSV. Query params: `classId` (required), `subjectId` (optional), `dateFrom`, `dateTo`, `search`, `format` (`roster` or `sessions`). Teachers restricted strictly to assigned classes (403 `FORBIDDEN` for unassigned classes); Admins authorized for all classes. `roster` format exports student totals, percentage, and standing; `sessions` format exports session-by-session records. Protected against CSV injection and buffered memory spikes. |
+| `GET` | `/reports/admin/summary/export` | Admin Only | Streams institution-wide attendance summary grouped by department and class cohorts as CSV. Query params: optional `departmentId`, `academicYearId`, `dateFrom`, `dateTo`. Columns: `Department Code, Department Name, Class Label, Academic Year, Active Students, Total Sessions Held, Attended Count, Total Opportunities, Average Attendance %, Status`. |
+| `GET` | `/reports/attendance/export` | Admin, Teacher | Exports filtered attendance reports to CSV format. Dispatches to class attendance export when `classId` is provided or to institution summary when called by Admin without `classId`. |
 
 ### Settings (`/settings`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/settings` | Admin | Returns system configuration settings (e.g., `LOW_ATTENDANCE_THRESHOLD_PERCENT`, `TIMEZONE`). |
-| `PATCH` | `/settings` | Admin | Updates configurable settings. Default threshold: 75%. |
+| `GET` | `/settings` | Admin, Teacher | Returns system configuration settings (e.g., `LOW_ATTENDANCE_THRESHOLD_PERCENT`, `TIMEZONE`). |
+| `PATCH` | `/settings` | Admin Only | Updates configurable settings (e.g. `LOW_ATTENDANCE_THRESHOLD_PERCENT`, validated between 1.0 and 100.0). Writes `SETTING_UPDATED` audit record. Default threshold: 75.0%. |
+
+---
+
+## 8. Notifications & Low-Attendance Alerts (`/notifications`)
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/notifications/my` | Student (Self Only) | Returns personal low-attendance alerts and notifications for the authenticated student (`req.user.id`). Query params: optional `status` (`UNREAD`, `READ`, `RESOLVED`), `limit`. Returns array of notifications and status counts (`total`, `unread`, `read`, `resolved`). |
+| `PATCH` | `/notifications/:id/read` | Student (Owner Only) | Marks an unread notification as `READ` and records `readAt`. Cross-student access rejected with 403 `FORBIDDEN`. |
+| `PATCH` | `/notifications/:id/resolve` | Student (Owner Only) | Explicitly resolves/dismisses an alert (`RESOLVED`), recording `resolvedAt`. Cross-student access rejected with 403 `FORBIDDEN`. |
+| `GET` | `/notifications/class/:classId` | Assigned Teacher, Admin | Returns all notifications issued for students enrolled in the specified class. Teachers authorized strictly for assigned classes (403 `CLASS_NOT_ASSIGNED` for unassigned classes); Admins authorized across all classes. Query params: optional `status`. |
+| `POST` | `/notifications/evaluate` | Admin, Assigned Teacher | Triggers on-demand evaluation of attendance alert policy. Teachers may specify `classId` for assigned classes; Admins may evaluate a specific `classId` or omit `classId` for institution-wide evaluation. Adheres to stable deduplication (`dedupKey`), zero-sessions rule (no warning generated if 0 sessions held), and auto-resolves active warnings if student attendance has recovered to $\ge$ threshold. |
+

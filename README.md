@@ -15,11 +15,13 @@ This repository pack contains the locked baseline requirements and AI-assisted d
 ## Important implementation gate
 The recognition engine is provisionally locked to **Human (JavaScript face analysis library)** for a short technical spike. Do not build the full application around it until the spike confirms package maintenance/compatibility, model licensing, webcam performance, and recognition behavior. If it fails, evaluate self-hosted CompreFace as the approved fallback and document the decision in `docs/DECISIONS.md`.
 
+## Developer Commands
+For a complete single-source reference of all development, database, migration, seeding, testing, typechecking, and build commands, see **[COMMANDS.md](COMMANDS.md)**.
+
 ## Getting started
-1. Read `AGENTS.md`.
-2. Read `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE_DESIGN.md`, and `docs/FACE_RECOGNITION.md`.
-3. Follow `plans/MASTER_PLAN.md` in order.
-4. Treat `rules/` as mandatory project standards.
-5. Use `skills/` as workflow playbooks; connect them to your coding agent's supported skill mechanism.
+1. Check **[COMMANDS.md](COMMANDS.md)** for all commands to run, test, and build the application.
+2. Read `AGENTS.md`.
+3. Read `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE_DESIGN.md`, and `docs/FACE_RECOGNITION.md`.
+4. Follow `plans/TASKS.md` for task verification records.
 
 This is a documentation starter pack, not an application implementation. No production security or recognition accuracy claim is implied.

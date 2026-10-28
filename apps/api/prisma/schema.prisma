@@ -54,8 +54,9 @@ model User {
   passwordHash String
   role         Role       @default(STUDENT)
   status       UserStatus @default(ACTIVE)
-  tokenVersion Int        @default(1)
-  createdAt    DateTime   @default(now())
+  tokenVersion       Int        @default(1)
+  mustChangePassword Boolean    @default(false)
+  createdAt          DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
   // Relations
@@ -120,7 +121,7 @@ model Class {
 
 model Subject {
   id           String   @id @default(uuid())
-  code         String   @unique
+  code         String
   name         String
   departmentId String
   active       Boolean  @default(true)
@@ -132,6 +133,7 @@ model Subject {
   timetableEntries   TimetableEntry[]
   attendanceSessions AttendanceSession[]
 
+  @@unique([departmentId, code])
   @@index([departmentId])
 }
 
@@ -142,17 +144,18 @@ model Student {
   name           String
   email          String        @unique
   departmentId   String
-  academicYearId String
-  classId        String
+  academicYearId String?
+  classId        String?
   status         StudentStatus @default(PENDING)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   user              User?              @relation("UserStudent", fields: [userId], references: [id], onDelete: SetNull)
   department        Department         @relation(fields: [departmentId], references: [id])
-  academicYear      AcademicYear       @relation(fields: [academicYearId], references: [id])
-  class             Class              @relation(fields: [classId], references: [id])
+  academicYear      AcademicYear?      @relation(fields: [academicYearId], references: [id])
+  class             Class?             @relation(fields: [classId], references: [id])
   faceEnrollment    FaceEnrollment?
+  biometricConsent  BiometricConsent?
   attendanceRecords AttendanceRecord[]
   notifications     Notification[]
 
@@ -178,7 +181,7 @@ model TeacherAssignment {
   subject          Subject          @relation(fields: [subjectId], references: [id])
   timetableEntries TimetableEntry[]
 
-  @@unique([teacherUserId, classId, subjectId])
+  @@unique([classId, subjectId])
   @@index([teacherUserId])
   @@index([classId])
 }
@@ -275,13 +278,16 @@ model Notification {
   studentId  String
   type       String    // e.g. "LOW_ATTENDANCE", "CONSENT_REMINDER"
   message    String
-  status     String    @default("UNREAD")
+  status     String    @default("UNREAD") // "UNREAD", "READ", "RESOLVED"
+  dedupKey   String?   // e.g. "LOW_ATTENDANCE:OVERALL" or "LOW_ATTENDANCE:SUBJECT:<id>"
+  metadata   String?   // JSON stringified context e.g. { threshold: 75, percentage: 66.7 }
   createdAt  DateTime  @default(now())
   resolvedAt DateTime?
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId, status])
+  @@index([studentId, dedupKey])
 }
 
 model AuditLog {
@@ -306,4 +312,21 @@ model SystemSetting {
   value       String   // e.g. "75"
   description String?
   updatedAt   DateTime @updatedAt
+}
+
+model BiometricConsent {
+  id               String    @id @default(uuid())
+  studentId        String    @unique
+  status           String    @default("GRANTED") // "GRANTED", "REVOKED"
+  consentVersion   String    @default("1.0")
+  consentedAt      DateTime  @default(now())
+  revokedAt        DateTime?
+  revocationReason String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([status])
 }

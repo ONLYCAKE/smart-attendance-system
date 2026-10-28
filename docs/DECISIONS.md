@@ -26,10 +26,16 @@
 **Reason:** Data minimization. Institutional/legal retention obligations must still be checked before deployment.
 
 ## ADR-006: Recognition engine
-**Status:** Conditional  
-**Decision:** Evaluate Human as first candidate; use self-hosted CompreFace if the spike fails.  
-**Reason:** Keep the recognition provider replaceable and validate package/model/runtime fit before building dependent features.  
-**Exit criteria:** See `docs/FACE_RECOGNITION.md`.
+**Status:** Accepted (Human.js for client extraction + server-side vector verification adapter)  
+**Decision:** Adopt Human.js (@vladmandic/human v3.3.6, MIT License) for client-side face extraction, paired with a provider-independent backend matching adapter.  
+**Spike Results (T-030 Verified):**  
+- **Licensing:** Package licensed under MIT.  
+- **Descriptor Representation:** Normalized 1024-float vector.  
+- **Latency:** Cold start 0.17 ms; warm 1:1 vector comparison ~5 μs; 1:100 cohort search 4.76 ms.  
+- **Memory Footprint:** 3.45 MB heap footprint.  
+- **Thresholds Established:** Confident match threshold at $\ge 0.82$ cosine similarity; ambiguity margin at $0.08$ delta (top match vs runner-up). Matches within margin are classified as `UNCERTAIN_MATCH`.  
+- **Privacy & Security Invariant:** Raw images are never transmitted or persisted on the server; only encrypted/normalized descriptor vectors scoped to authorized cohorts are compared. Incompatible model versions are rejected.  
+- **Fallback Plan:** CompreFace container service remains available as an adapter swap if browser WebGL capability is missing on legacy hardware.
 
 ## ADR-007: Lecture-based attendance
 **Status:** Accepted  
