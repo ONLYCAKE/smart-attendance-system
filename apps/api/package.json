@@ -11,6 +11,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:seed:demo": "tsx prisma/seed-demo.ts",
     "restore:reconcile": "tsx src/scripts/reconcile-biometric-restore.ts",
     "test": "vitest run --fileParallelism=false"
   },

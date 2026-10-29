@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { PrismaClient, Role, UserStatus, StudentStatus, SessionStatus, AttendanceStatus, AttendanceMethod } from "@prisma/client";
 import bcrypt from "bcrypt";
 
